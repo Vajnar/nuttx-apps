@@ -1,0 +1,7 @@
+PINOUT:
+ 2 - /dev/pwm0
+ 3 - /dev/pwm1
+ 0 - /dev/gpio0
+ 1 - /dev/gpio1
+10 - /dev/gpio2
+11 - /dev/gpio3
