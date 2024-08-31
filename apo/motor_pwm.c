@@ -14,6 +14,7 @@
 
 #include <nuttx/timers/pwm.h>
 #include <nuttx/ioexpander/gpio.h>
+#include <nuttx/sensors/qencoder.h>
 
 int main(int argc, FAR char *argv[])
 {
@@ -44,6 +45,13 @@ int main(int argc, FAR char *argv[])
     close(fd);
     fflush(stdout);
 
+    // Quadratic Encoder 0
+    int32_t pos;
+    int fd_qe0;
+    fd_qe0 = open("/dev/qe0", O_RDWR);
+    ioctl(fd_qe0, QEIOC_POSITION, &pos);
+    printf("QE0 Postition=%ld\n", pos);
+
     // PWM 0
     memset(&info, 0, sizeof(struct pwm_info_s));
     info.frequency = 1000;
@@ -70,6 +78,11 @@ int main(int argc, FAR char *argv[])
     printf("Verify: Value=%u\n", (unsigned int)invalue);
     close(fd);
     fflush(stdout);
+
+    // Quadratic Encoder 0
+    ioctl(fd_qe0, QEIOC_POSITION, &pos);
+    printf("QE0 Postition=%ld\n", pos);
+    close(fd_qe0);
 
     return OK;
 }
