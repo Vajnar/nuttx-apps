@@ -11,6 +11,7 @@
 #include <debug.h>
 #include <string.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include <nuttx/timers/pwm.h>
 #include <nuttx/ioexpander/gpio.h>
@@ -95,22 +96,50 @@ int main(int argc, FAR char *argv[])
     ioctl(fd_pwm1, PWMIOC_SETCHARACTERISTICS, (unsigned long)((uintptr_t)&info));
     ioctl(fd_pwm1, PWMIOC_START, 0);
     puts("Starting PWM pulse train");
-    int i = 100;
+    int i = 1000;
+    // double int_val = 0;
     while (i--) {
         // ioctl(fd_qe0, QEIOC_POSITION, &pos);
         // printf("QE0 Position=%ld, pass=%d\n", pos, i);
         ioctl(fd_qe1, QEIOC_POSITION, &pos);
         ioctl(fd_qe1, QEIOC_RESET, 0);
-        double p = 90 - 1 * pos;
-        info.duty = b16divi(uitoub16((uint8_t)abs((int32_t)p)) - 1, 100);
-        if (info.duty > 32767) {
-            info.duty = 32767;
-        } else if (info.duty < 13107) {
-            info.duty = 13107;
-        }
-        ioctl(fd_pwm1, PWMIOC_SETCHARACTERISTICS, (unsigned long)((uintptr_t)&info));
-        printf("QE1 Position=%ld, info.duty=%lu, p=%lf\n", pos, info.duty, p);
-        usleep(100000);
+        // double err = 60 - pos;
+        // int_val += err;
+        // double p = 5000 * err;
+        // double it = 100 * int_val;
+        // double output = p + it;
+        // if (output < 0) {
+        //     outvalue = false;
+        //     fd = open("/dev/gpio2", O_RDWR);
+        //     ioctl(fd, GPIOC_WRITE, (unsigned long)outvalue);
+        //     close(fd);
+        //
+        //     outvalue = true;
+        //     fd = open("/dev/gpio3", O_RDWR);
+        //     ioctl(fd, GPIOC_WRITE, (unsigned long)outvalue);
+        //     close(fd);
+        // } else {
+        //     outvalue = true;
+        //     fd = open("/dev/gpio2", O_RDWR);
+        //     ioctl(fd, GPIOC_WRITE, (unsigned long)outvalue);
+        //     close(fd);
+        //
+        //     outvalue = false;
+        //     fd = open("/dev/gpio3", O_RDWR);
+        //     ioctl(fd, GPIOC_WRITE, (unsigned long)outvalue);
+        //     close(fd);
+        // }
+        // output = fabs(output);
+        // if (output < 13107) {
+        //     output = 13107;
+        // } else if (output > 15000) {
+        //     output = 15000;
+        // }
+        // info.duty = (uint16_t)output;
+        // ioctl(fd_pwm1, PWMIOC_SETCHARACTERISTICS, (unsigned long)((uintptr_t)&info));
+        // printf("QE1 Position=%ld, info.duty=%lu, err=%lf, p=%lf, i=%lf\n", pos, info.duty, err, p, it);
+        printf("QE1 Position=%ld, remaining=%d\n", pos, i);
+        usleep(1000000);
     }
     // ioctl(fd_pwm0, PWMIOC_STOP, 0);
     ioctl(fd_pwm1, PWMIOC_STOP, 0);
