@@ -111,6 +111,10 @@ int main(int argc, char *argv[])
     ioctl(fd_pwm1, PWMIOC_START, 0);
 
     while(1) {
+        ioctl(fd_qe1, QEIOC_POSITION, &pos);
+        ioctl(fd_qe1, QEIOC_RESET, 0);
+        printf("QE1 Position=%ld\n", pos);
+
         char incoming[64];
         int num_read = read(tcp_conn_socket, &incoming, sizeof(incoming));
         if (num_read < 0 && errno == EWOULDBLOCK) {
