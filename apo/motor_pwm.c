@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
         }
         info.duty = b16divi(uitoub16((uint8_t)pwm_left) - 1, 100);
         ioctl(fd_pwm1, PWMIOC_SETCHARACTERISTICS, (unsigned long)((uintptr_t)&info));
+        sleep(1);
     }
     close(tcp_conn_socket);
     close(tcp_socket);
