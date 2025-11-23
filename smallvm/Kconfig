@@ -1,0 +1,5 @@
+config SMALLVM
+	tristate "smallVM"
+	default n
+	---help---
+		Enable the smallVM
