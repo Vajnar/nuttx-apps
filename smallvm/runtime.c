@@ -13,8 +13,12 @@
 #include <string.h>
 #include <string.h>
 
-#if defined(GNUBLOCKS) && !defined(EMSCRIPTEN)
+#if defined(GNUBLOCKS) && !defined(EMSCRIPTEN) && !defined(NUTTX)
 #include "../linux+pi/linux.h"
+#endif
+
+#if defined(NUTTX)
+#include "nuttx.h"
 #endif
 
 #include "mem.h"
@@ -24,7 +28,9 @@
 
 // Forward Reference Declarations
 
+#if !defined(GNUBLOCKS) || defined(EMSCRIPTEN)
 void delay(unsigned long); // Arduino delay function
+#endif
 
 static void softReset(int clearMemoryFlag);
 static void sendMessage(int msgType, int chunkIndex, int dataSize, char *data);
@@ -151,6 +157,42 @@ void primsInit() {
 	addOneWirePrims();
 // 	addCameraPrims();
 	addEncoderPrims();
+//	addSDCardPrims();
+#elif defined(GNUBLOCKS) && !defined(EMSCRIPTEN) && !defined(NUTTX)
+	addDataPrims();
+	addDisplayPrims();
+	addFilePrims();
+	addIOPrims();
+	addMiscPrims();
+	addNetPrims();
+//	addBLEPrims();
+//	addRadioPrims();
+	addSensorPrims();
+	addSerialPrims();
+	addTFTPrims();
+	addVarPrims();
+	addHIDPrims();
+	addOneWirePrims();
+//	addCameraPrims();
+//	addEncoderPrims();
+//	addSDCardPrims();
+#elif defined(NUTTX)
+	addDataPrims();
+//	addDisplayPrims();
+//	addFilePrims();
+//	addIOPrims();
+	addMiscPrims();
+//	addNetPrims();
+//	addBLEPrims();
+//	addRadioPrims();
+//	addSensorPrims();
+//	addSerialPrims();
+//	addTFTPrims();
+	addVarPrims();
+//	addHIDPrims();
+//	addOneWirePrims();
+//	addCameraPrims();
+//	addEncoderPrims();
 //	addSDCardPrims();
 #else
 	addDataPrims();
