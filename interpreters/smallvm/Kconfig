@@ -1,0 +1,42 @@
+config INTERPRETERS_SMALLVM
+	tristate "smallVM"
+	default n
+
+if INTERPRETERS_SMALLVM
+
+config INTERPRETERS_SMALLVM_PRIORITY
+	int "smallVM priority"
+	default 100
+
+config INTERPRETERS_SMALLVM_STACKSIZE
+	int "smallVM stack size"
+	default 8192
+
+choice
+	prompt "Communication with Microblocks IDE"
+	default INTERPRETERS_SMALLVM_SERIAL
+
+config INTERPRETERS_SMALLVM_SERIAL
+	bool "Use serial line for communication"
+
+config INTERPRETERS_SMALLVM_TCP
+	bool "Use TCP for communication"
+
+endchoice
+
+if INTERPRETERS_SMALLVM_SERIAL
+
+config INTERPRETERS_SMALLVM_SERIAL_DEVICE
+	string "Serial device used for communication"
+	default "/dev/ttyACM0"
+
+endif
+
+if INTERPRETERS_SMALLVM_TCP
+
+config INTERPRETERS_SMALLVM_TCP_PORT
+	int "Port number to listen on"
+	default 9876
+endif
+
+endif
