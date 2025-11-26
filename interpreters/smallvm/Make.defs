@@ -1,0 +1,3 @@
+ifneq ($(CONFIG_INTERPRETERS_SMALLVM),)
+CONFIGURED_APPS += $(APPDIR)/interpreters/smallvm
+endif

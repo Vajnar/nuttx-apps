@@ -1,3 +1,0 @@
-ifneq ($(CONFIG_SMALLVM),)
-CONFIGURED_APPS += $(APPDIR)/smallvm
-endif
