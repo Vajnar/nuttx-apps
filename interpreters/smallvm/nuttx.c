@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <nuttx/config.h>
+#include <poll.h>
 
 #include "mem.h"
 #include "interp.h"
@@ -106,6 +107,20 @@ int serialConnected() {
 	return fd > -1;
 }
 
+int waitUSecsOrEvent(int usecs) {
+	int ret;
+	int nfds = 1;
+	struct pollfd fds[1];
+	struct timespec timeout = { .tv_sec = usecs / 1000000, .tv_nsec = (usecs % 1000000) * 1000};
+
+	fds[0].fd = fd;
+	fds[0].events = POLLIN;
+	if (bytesToOutput()) { fds[0].events |= POLLOUT; }
+	ret = ppoll(fds, nfds, &timeout, NULL);
+
+	return ret;
+}
+
 int recvBytes(uint8 *buf, int count) {
 	int readCount = 0;
 
@@ -113,6 +128,8 @@ int recvBytes(uint8 *buf, int count) {
 	FD_SET(fd, &fdSet);
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
+
+	if (fd < 0) return 0;
 	int ret = select(fd+1, &fdSet, NULL, NULL, &tv);
 	if (ret == -1) {
 		perror("select()");
@@ -122,6 +139,11 @@ int recvBytes(uint8 *buf, int count) {
 			readCount = 0;
 			perror("Error recvBytes: ");
 		}
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
+		else if (readCount == 0) {
+			fd = -1;
+		}
+#endif
 #ifdef DEBUG
 		else if (readCount > 0) {
 			printf("recvBytes: buf = %p, readCount = %d, count = %d\n", buf, readCount, count);
@@ -139,6 +161,8 @@ int sendBytes(uint8 *buf, int start, int end) {
 	FD_SET(fd, &fdSet);
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
+
+	if (fd < 0) return 0;
 	int ret = select(fd+1, NULL, &fdSet, NULL, &tv);
 	if (ret == -1) {
 		perror("select()");
@@ -148,6 +172,11 @@ int sendBytes(uint8 *buf, int start, int end) {
 			writtenBytes = 0;
 			perror("Error sendBytes no: ");
 		}
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
+		else if (writtenBytes == 0) {
+			fd = -1;
+		}
+#endif
 #ifdef DEBUG
 		else if (writtenBytes > 0) {
 			printf("sendBytes: &buf[start] = %p, start = %d, end = %d, writtenBytes = %d, to write() = %d\n", &buf[start], start, end, writtenBytes, end - start);
