@@ -625,6 +625,8 @@ static void sendMessage(int msgType, int chunkIndex, int dataSize, char *data) {
 
 int hasOutputSpace(int byteCount) { return ((OUTBUF_MASK - OUTBUF_BYTES()) > byteCount); }
 
+int bytesToOutput(void) { return OUTBUF_BYTES(); }
+
 static void waitForOutbufBytes(int bytesNeeded) {
 	// Wait until there is room for the given number of bytes in the output buffer.
 
