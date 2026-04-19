@@ -100,8 +100,6 @@ static void print_hex_dump(const unsigned char *buffer, size_t length) {
 #endif
 
 static int fd = -1; // pseudo terminal used for communication with the IDE
-static fd_set fdSet;
-static struct timeval tv;
 
 int serialConnected() {
 	return fd > -1;
@@ -124,15 +122,16 @@ int waitUSecsOrEvent(int usecs) {
 int recvBytes(uint8 *buf, int count) {
 	int readCount = 0;
 
-	FD_ZERO(&fdSet);
-	FD_SET(fd, &fdSet);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
+	int nfds = 1;
+	struct pollfd fds[1];
+	struct timespec timeout = {0,0};
 
 	if (fd < 0) return 0;
-	int ret = select(fd+1, &fdSet, NULL, NULL, &tv);
+	fds[0].fd = fd;
+	fds[0].events = POLLIN;
+	int ret = ppoll(fds, nfds, &timeout, NULL);
 	if (ret == -1) {
-		perror("select()");
+		perror("ppoll()");
 	} else if (ret) {
 		readCount = read(fd, buf, count);
 		if (readCount < 0) {
@@ -157,15 +156,16 @@ int recvBytes(uint8 *buf, int count) {
 int sendBytes(uint8 *buf, int start, int end) {
 	int writtenBytes = 0;
 
-	FD_ZERO(&fdSet);
-	FD_SET(fd, &fdSet);
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
+	int nfds = 1;
+	struct pollfd fds[1];
+	struct timespec timeout = {0,0};
 
 	if (fd < 0) return 0;
-	int ret = select(fd+1, NULL, &fdSet, NULL, &tv);
+	fds[0].fd = fd;
+	fds[0].events = POLLOUT;
+	int ret = ppoll(fds, nfds, &timeout, NULL);
 	if (ret == -1) {
-		perror("select()");
+		perror("ppoll()");
 	} else if (ret) {
 		writtenBytes = write(fd, &buf[start], end - start);
 		if (writtenBytes < 0) {
