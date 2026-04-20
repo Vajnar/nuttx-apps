@@ -1294,13 +1294,18 @@ void processMessage() {
 // 		rcvByteCount += bytesRead;
 // 	}
 
+	// Drain receive buffer.
+	// It can happen on TCP that data is buffered due to re-xmit attempts. When successful the data
+	// is sent all at once overloading receive buffer with messages.
 	lastRcvTime = microsecs();
-	int firstByte = rcvBuf[0];
-	if (0xFA == firstByte) {
-		processShortMessage();
-	} else if (0xFB == firstByte) {
-		processLongMessage();
-	} else {
-		skipToStartByteAfter(1); // bad message, probably due to dropped bytes
+	while(rcvByteCount) {
+		int firstByte = rcvBuf[0];
+		if (0xFA == firstByte) {
+			processShortMessage();
+		} else if (0xFB == firstByte) {
+			processLongMessage();
+		} else {
+			skipToStartByteAfter(1); // bad message, probably due to dropped bytes
+		}
 	}
 }
