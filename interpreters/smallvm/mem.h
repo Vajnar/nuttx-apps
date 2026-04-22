@@ -36,12 +36,16 @@ extern "C" {
 	// HAS_LED_MATRIX is defined for all boards but display operations ignored if not CincoBit
 	#define HAS_LED_MATRIX 1
 
-	// These macros read the 24-bit product ID fromt the OTP area.
+	// Return the 24-bit product ID from the OTP area
+	#define DUE_PID (*((uint32 *) 0x1FFF7004) & 0xFFFFFF)
+
+	// These macros use the 24-bit product ID from the OTP area.
 	// CincoBit = 1, PixoBit = 2; ID's 3-15 are reserved for future boards with edge connectors
-	#define DUE_HAS_EDGE_CONNECTOR ((*((uint32 *) 0x1FFF7004) & 0xFFFFFF) < 16)
-	#define IS_DUE_CINCO ((*((uint32 *) 0x1FFF7004) & 0xFFFFFF) == 1)
-	#define IS_DUE_STEM ((*((uint32 *) 0x1FFF7004) & 0xFFFFFF) == 16)
-	#define IS_DUE_CLIPIT ((*((uint32 *) 0x1FFF7004) & 0xFFFFFF) == 17)
+	#define DUE_HAS_EDGE_CONNECTOR (DUE_PID < 16)
+	#define IS_DUE_CINCO (DUE_PID == 1)
+	#define IS_DUE_STEM (DUE_PID == 16)
+	#define IS_DUE_CLIPIT (DUE_PID == 17)
+	#define IS_DUE_CHRONO (DUE_PID == 0x0C0004)
 #endif
 
 #if defined(ESP32) && !(defined(ESP32_S2) || defined(ESP32_S3) || defined(ESP32_C3) || defined(ESP32_C6))
@@ -77,7 +81,7 @@ typedef signed short int int16;
 
 // Boolean constants for readability (if not already defined)
 
-#if !defined(true) || !defined(false)
+#if !defined(__cplusplus)
 	#define true 1
 	#define false 0
 #endif

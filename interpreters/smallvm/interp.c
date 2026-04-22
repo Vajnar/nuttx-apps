@@ -414,13 +414,12 @@ static int functionNameMatches(int chunkIndex, char *functionName, int nameLengt
 	return true;
 }
 
-static int chunkIndexForFunction(char *functionName) {
+int chunkIndexForFunction(char *functionName) {
 	// Return the chunk index for the function with the given name or -1 if not found.
 
 	int nameLength = strlen(functionName);
 	for (int i = 0; i < MAX_CHUNKS; i++) {
-		int chunkType = chunks[i].chunkType;
-		if ((functionHat == chunkType) &&
+		if ((functionHat == chunks[i].chunkType) &&
 			 functionNameMatches(i, functionName, nameLength)) {
 				return i;
 		}
@@ -485,6 +484,9 @@ static void interpDebug(int ip, int cmd, int arg, int sp) {
 	reportNum("sp", sp - task->stack); \
 	reportNum("fp", fp - task->stack); \
 }
+
+#define OP_POP 19
+#define OP_DECREMENT_AND_JUMP 26
 
 static void runTask(Task *task) {
 	register int op;
@@ -643,7 +645,7 @@ static void runTask(Task *task) {
 			}
 			goto suspend;
 		}
-		// tmp encodes the error location: <22 bit ip><8 bit chunkIndex>
+		// tmp encodes the error location: <16 bit ip><8 bit chunkIndex>
 		tmp = ((ip - (int16 *) task->code) << 8) | (task->currentChunkIndex & 0xFF);
 		sendTaskError(task->taskChunkIndex, errorCode, tmp);
 		task->status = unusedTask;
@@ -743,12 +745,21 @@ static void runTask(Task *task) {
 		DISPATCH();
 	jmp_op:
 	longJmp_op:
-	exitLoop_op:
 		if (!arg) arg = *ip++; // zero arg means offset is in the next word
 		ip += arg;
 #if USE_TASKS
 		if (arg < 0) goto suspend;
 #endif
+		DISPATCH();
+	exitLoop_op:
+		if (!arg) arg = *ip++; // zero arg means offset is in the next word
+		ip += arg;
+		tmp = CMD(*(ip - 1));
+		if (tmp == OP_POP) { // pop 'for' loop state
+			sp -= 3;
+		} else if (tmp == OP_DECREMENT_AND_JUMP) { // pop 'repeat' loop counter
+			sp -= 1;
+		}
 		DISPATCH();
 	jmpTrue_op:
 		if (!arg) arg = *ip++; // zero arg means offset is in the next word
