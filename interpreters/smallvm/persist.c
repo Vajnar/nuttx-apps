@@ -466,8 +466,8 @@ static void flashWriteData(int *dst, int wordCount, uint8 *src) {
 #define STM32_FLASH_START 0x08000000
 #define STM32_PAGE_SIZE 0x800 // 2k bytes
 
-#define START (STM32_FLASH_START + (92 * 1024))
-#define HALF_SPACE (18 * 1024)
+#define START (STM32_FLASH_START + (96 * 1024))
+#define HALF_SPACE (16 * 1024)
 
 static void flashErase(int *startAddr, int *endAddr) {
 	int startPage = ((int) startAddr - STM32_FLASH_START) / STM32_PAGE_SIZE;
@@ -1069,16 +1069,17 @@ void clearPersistentMemory() {
 }
 
 int * appendPersistentRecord(int recordType, int id, int extra, int byteCount, uint8 *data) {
-	// Append the given record at the end of the current half-space and return it's address.
+	// Append the given record at the end of the current half-space and return its address.
 	// Header word: <tag = 'R'><record type><id of chunk/variable/comment><extra> (8-bits each)
 	// Perform a compaction if necessary.
 	int wordCount = (byteCount + 3) / 4;
+	int needed = wordCount + 2 + 4; // add 4 extra words for DUELink rounding
 	int *end = (0 == current) ? end0 : end1;
-	if ((freeStart + 2 + wordCount) > end) {
-		compactCodeStore();
+	if ((freeStart + needed) > end) {
+		compactCodeStore(NULL, NULL);
 		end = (0 == current) ? end0 : end1;
-		if ((freeStart + 2 + wordCount) > end) {
-			outputString("Not enough room even after compaction");
+		if ((freeStart + needed) > end) {
+			sendCodeStoreFull();
 			return NULL;
 		}
 	}
@@ -1120,12 +1121,18 @@ int * appendPersistentRecord(int recordType, int id, int extra, int byteCount, u
 	return result;
 }
 
-void compactCodeStore() {
+void compactCodeStore(int *codeStoreUsed, int *codeStoreTotal) {
+	// Compact the code store. If arguments are not NULL, use them to report the code stats.
+
 	#ifdef RAM_CODE_STORE
 		compactRAM(true);
 	#else
 		compactFlash();
 	#endif
+	if (codeStoreUsed && codeStoreTotal) { // report code store stats
+		*codeStoreUsed = 4 * (freeStart - ((0 == current) ? start0 : start1));
+		*codeStoreTotal = HALF_SPACE;
+	}
 }
 
 void restoreScripts() {
@@ -1252,7 +1259,7 @@ void persistTest() {
 	for (int i = 0; i < 3000; i++) {
 		appendPersistentRecord(chunkCode, i % 100, 0, (i % 5) * 4, (uint8 *) dummyData);
 	}
-	compactCodeStore();
+	compactCodeStore(NULL, NULL);
 
 	dumpWords(current, 150);
 	showRecordHeaders();
