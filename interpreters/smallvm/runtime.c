@@ -57,6 +57,54 @@ static void debugBeep(int count) {
 
 #endif
 
+// DUELink support
+
+#if defined(DUELink)
+
+#include <stm32c0xx.h>
+#include <stm32c071xx.h>
+#include <usbd_cdc_if.h> // for CDC_deInit()
+
+__RAM_FUNC __NOINLINE static void dueLinkEraseFlashAndReset() {
+	// Danger! This function erases all of Flash memory then reboots the board in DFU mode.
+
+	CDC_deInit(); // stop USB serial
+
+	// disable interrupts
+	__disable_irq();
+
+	while (FLASH->SR & FLASH_SR_BSY1_Msk); // wait for any previous operation to complete
+
+	if (__HAL_FLASH_GET_FLAG(FLASH_FLAG_CFGBSY) != 0) {
+		__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ALL_ERRORS);
+	}
+
+	// mass erase all of Flash
+	HAL_FLASH_Unlock();
+	FLASH->CR |= (FLASH_CR_STRT | FLASH_CR_MER1);
+	while (FLASH->SR & FLASH_SR_BSY1_Msk); // wait for erase to complete
+
+	// NOTE: Flash has been erased! Do not call any library functions after this point!
+
+	// set the Flash empty flag
+	SET_BIT(FLASH->ACR, 1 << 16);
+
+	// reset
+	SCB->AIRCR = (
+		(0x5FA << SCB_AIRCR_VECTKEY_Pos) | // unlock key
+		(1 << SCB_AIRCR_SYSRESETREQ_Pos)); // reset request
+
+	// wait for reset
+	while (1);
+	// This function never returns because the board resets.
+}
+
+#else
+
+static void dueLinkEraseFlashAndReset() { } // noop on non-DUELink boards
+
+#endif
+
 // Named Primitive Support
 
 typedef struct {
@@ -141,22 +189,22 @@ void primsInit() {
 	memset(primSets, 0, sizeof(primSets));
 
 #if defined(DUELink)
-	addDataPrims();
-	addDisplayPrims();
+	addDataPrims();		// ~5600 bytes
+	addDisplayPrims();	// ~1500 bytes
 //	addFilePrims();
-	addIOPrims();
-	addMiscPrims();
+	addIOPrims();		// ~2900 bytes
+	addMiscPrims();		// ~6000 bytes (could be reduced?)
 // 	addNetPrims();
 // 	addBLEPrims();
 // 	addRadioPrims();
-	addSensorPrims();
-	addSerialPrims();
+	addSensorPrims();	// ~3000 bytes
+	addSerialPrims();	// ~3500 bytes
 //	addTFTPrims();
-	addVarPrims();
+	addVarPrims();		// ~300 bytes
 // 	addHIDPrims();
-	addOneWirePrims();
+//	addOneWirePrims();	// ~200 bytes
 // 	addCameraPrims();
-	addEncoderPrims();
+	addEncoderPrims();	// ~1650 bytes
 //	addSDCardPrims();
 #elif defined(GNUBLOCKS) && !defined(EMSCRIPTEN) && !defined(NUTTX)
 	addDataPrims();
@@ -464,7 +512,7 @@ static void storeCodeChunk(uint8 chunkIndex, int byteCount, uint8 *data) {
 	int chunkType = data[0]; // first byte is the chunk type
 	int *persistentChunk = appendPersistentRecord(chunkCode, chunkIndex, chunkType, byteCount - 1, &data[1]);
 	chunks[chunkIndex].code = persistentChunk;
-	chunks[chunkIndex].chunkType = chunkType;
+	chunks[chunkIndex].chunkType = persistentChunk ? chunkType : unusedChunk;
 }
 
 static void storeVarName(uint8 varIndex, int byteCount, uint8 *data) {
@@ -836,8 +884,15 @@ static void setVariableValue(int varID, int byteCount, uint8 *data) {
 	}
 }
 
-static void sendVersionString() {
+static void sendVersionString(int chunkIndex) {
 	char s[100];
+	#if defined(DUELink)
+		if (1 == chunkIndex) { // return the PID as a hex string
+			snprintf(s, sizeof(s), "0x%06X", DUE_PID);
+			sendMessage(versionMsg, 1, strlen(s), s);
+			return;
+		}
+	#endif
 	snprintf(s, sizeof(s), " %s %s", VM_VERSION, boardType());
 	s[0] = 2; // data type (2 is string)
 	sendMessage(versionMsg, 0, strlen(s), s);
@@ -859,6 +914,10 @@ void sendBroadcastToIDE(char *s, int len) {
 void sendSayForChunk(char *s, int len, uint8 chunkIndex) {
 	// Used by the "say" primitive. The buffer s includes the string value type byte.
 	sendMessage(outputValueMsg, chunkIndex, len, s);
+}
+
+void sendCodeStoreFull() {
+	sendMessage(codeStoreFullMsg, 0, 0, NULL);
 }
 
 // Code chunk error checking (CRC-32)
@@ -1173,7 +1232,7 @@ static int processShortMessage() {
 		sendAllCRCs();
 		break;
 	case getVersionMsg:
-		sendVersionString();
+		sendVersionString(chunkIndex);
 		break;
 	case getAllCodeMsg:
 		if (1 != chunkIndex) break; // ignore msg from 32-bit IDE
@@ -1191,8 +1250,19 @@ static int processShortMessage() {
 	case systemResetMsg:
 		// non-zero chunkIndex is used for debugging operations
 		if (1 == chunkIndex) { outputRecordHeaders(); break; }
-		if (2 == chunkIndex) { compactCodeStore(); break; }
+		if (2 == chunkIndex) {
+			// compact the code store and return the code usage stats
+			char msgBody[8];
+			compactCodeStore((int *) &msgBody[0], (int *) &msgBody[4]);
+			sendMessage(codeStoreUsedMsg, 0, 8, msgBody);
+			sendData();
+			break;
+		}
 		if (3 == chunkIndex) { primMBDisplayOff(0, NULL); } // used by Boardie reset
+		if (199 == chunkIndex) {
+			clearAllVariables(); // do a Flash write operation to enable DFU after reset
+			dueLinkEraseFlashAndReset();
+		}
 		softReset(true);
 		break;
 	case pingMsg:
