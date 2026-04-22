@@ -40,32 +40,32 @@
 #if defined(NRF51)
 	#define OBJSTORE_BYTES 1120
 #elif defined(ARDUINO_BBC_MICROBIT_V2) || defined(ARDUINO_CALLIOPE_MINI_V3)
-	#define OBJSTORE_BYTES 46000
+	#define OBJSTORE_BYTES 45000
 #elif defined(ARDUINO_NRF52_PRIMO)
-	#define OBJSTORE_BYTES 14000
+	#define OBJSTORE_BYTES 13000
 #elif defined(NRF52)
-	#define OBJSTORE_BYTES 160000 // max is 219000
+	#define OBJSTORE_BYTES 150000 // max is 219000
 #elif defined(ARDUINO_ARCH_SAMD)
-	#define OBJSTORE_BYTES 12000
+	#define OBJSTORE_BYTES 11000
 #elif defined(HAS_CAMERA)
-	#define OBJSTORE_BYTES 240000 // will be allocated from PSRAM
+	#define OBJSTORE_BYTES 230000 // will be allocated from PSRAM
 #elif defined(ESP32_S3) || defined(ESP32_C3)
-	#define OBJSTORE_BYTES 78000
+	#define OBJSTORE_BYTES 77000
 #elif defined(ARDUINO_ARCH_ESP32)
 	// object store is allocated from heap on ESP32
 	#if defined(USE_NIMBLE)
-		#define OBJSTORE_BYTES 38000 // max that allows both BLE and WiFi is 59000; drops to 38000 w/ ESP Now
+		#define OBJSTORE_BYTES 37000 // max that allows both BLE and WiFi is 59000; drops to 38000 w/ ESP Now
 	#else
-		#define OBJSTORE_BYTES 70000
+		#define OBJSTORE_BYTES 69000
 	#endif
 #elif defined(GNUBLOCKS)
 	#define OBJSTORE_BYTES 78000 // max number of bytes that we can allocate for now
 #elif defined(ARDUINO_ARCH_RP2040)
-	#define OBJSTORE_BYTES 58000
+	#define OBJSTORE_BYTES 57000
 #elif defined(ARDUINO_SAM_DUE)
-	#define OBJSTORE_BYTES 76000
+	#define OBJSTORE_BYTES 75000
 #elif defined(CONFIG_BOARD_BEAGLECONNECT_FREEDOM)
-	#define OBJSTORE_BYTES 38000
+	#define OBJSTORE_BYTES 37000
 #elif defined(DUELink)
 	#define OBJSTORE_BYTES 7200
 #else
@@ -80,8 +80,15 @@
 
 #if defined(ARDUINO_ARCH_ESP32)
 	static OBJ *objstore = NULL; // allocated from heap on ESP32
+
+	#include <esp_heap_caps.h>
+	int hasPSRAM() {
+		return heap_caps_get_total_size(MALLOC_CAP_SPIRAM) > 0;
+	}
 #else
 	static OBJ objstore[OBJSTORE_WORDS];
+
+	int hasPSRAM() { return false; }
 #endif
 
 static OBJ memStart = NULL;
