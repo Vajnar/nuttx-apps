@@ -32,8 +32,8 @@ static int tftEnabled = false;
 // Helper Functions
 
 #define COLOR_888_TO_565(color) (((((color) >> 19) & 0x1f) << 11) \
-                                |((((color) >> 10) & 0x3f) << 5) \
-                                |(((color) >> 3) & 0x1f))
+                                |((((color) >> 10) & 0x3f)) \
+                                |(((color) >> 3) & 0x1f) << 6)
 
 void setRenderColor(uint32_t colorA) {
 	color = COLOR_888_TO_565(colorA);
@@ -63,11 +63,9 @@ void tftInit() {
 static OBJ primEnableDisplay(int argCount, OBJ *args) {
 	if (trueObj == args[0]) {
 		tftInit();
-		printf("primEnableDisplay == 1\n");
 	} else {
 		//TODO: paint screen black to clear it
 		//tftEnabled = false;
-		printf("primEnableDisplay == 0\n");
 	}
 	return falseObj;
 }
@@ -140,7 +138,6 @@ static OBJ primLine(int argCount, OBJ *args) {
 	area.h = abs(y1 - y0);
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
-	printf("primLine()");
 	return falseObj;
 }
 
