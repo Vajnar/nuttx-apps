@@ -9,7 +9,8 @@ CSRCS = dataPrims.c \
     persist.c \
     runtime.c \
     tinyJSON.c \
-    varPrims.c
+    varPrims.c \
+    tftPrims.c
 
 MAINSRC = nuttx.c
 
