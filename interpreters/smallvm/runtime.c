@@ -235,7 +235,7 @@ void primsInit() {
 //	addRadioPrims();
 //	addSensorPrims();
 //	addSerialPrims();
-//	addTFTPrims();
+	addTFTPrims();
 	addVarPrims();
 //	addHIDPrims();
 //	addOneWirePrims();
