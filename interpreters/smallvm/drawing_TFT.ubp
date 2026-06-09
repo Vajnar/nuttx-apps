@@ -3,7 +3,7 @@ author unknown
 version 1 0 
 description ''
 
-script 50 50 {
+script 50 54 {
 whenStarted
 forever {
   '[tft:clear]'
@@ -12,8 +12,14 @@ forever {
   waitMillis 1000
   '[tft:circle]' 100 100 50 (colorSwatch 255 0 0 255)
   waitMillis 1000
+  '[tft:line]' 170 170 230 230 (colorSwatch 0 255 0 255)
+  waitMillis 1000
 }
 }
+
+script 60 425 ('[tft:getWidth]')
+
+script 60 463 ('[tft:getHeight]')
 
 
 module TFT Output
