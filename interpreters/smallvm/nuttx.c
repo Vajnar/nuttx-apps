@@ -114,7 +114,9 @@ int waitUSecsOrEvent(int usecs) {
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
 	if (bytesToOutput()) { fds[0].events |= POLLOUT; }
+	printf("Timeout = %lld.%09ld\n", timeout.tv_sec, timeout.tv_nsec);
 	ret = ppoll(fds, nfds, &timeout, NULL);
+	printf("ppoll() = %d\n", ret);
 
 	return ret;
 }

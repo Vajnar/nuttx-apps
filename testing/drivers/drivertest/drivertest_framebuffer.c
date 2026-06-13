@@ -367,10 +367,10 @@ static void draw_rect(FAR struct fb_state_s *fb_state, int x, int y,
 #ifdef CONFIG_FB_UPDATE
   int ret;
   struct fb_area_s area;
-  area.x = 0;
-  area.y = 0;
-  area.w = xres;
-  area.h = yres;
+  area.x = x;
+  area.y = y;
+  area.w = w;
+  area.h = h;
 #endif
 
   for (j = y; j <= (y + h - 1) && j < yres; j++)
