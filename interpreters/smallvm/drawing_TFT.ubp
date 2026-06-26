@@ -3,23 +3,33 @@ author unknown
 version 1 0 
 description ''
 
-script 50 54 {
+script 570 50 {
+whenStarted
+forever {
+  setUserLED true
+  waitMillis 500
+  setUserLED false
+  waitMillis 500
+}
+}
+
+script 54 51 {
 whenStarted
 forever {
   '[tft:clear]'
   waitMillis 1000
-  '[tft:rect]' 10 10 40 30 (colorSwatch 0 0 255 255)
+  '[tft:rect]' 100 10 100 100 (colorSwatch 0 0 255 255)
   waitMillis 1000
-  '[tft:circle]' 100 100 50 (colorSwatch 255 0 0 255)
+  '[tft:circle]' 350 100 70 (colorSwatch 255 63 235 255)
   waitMillis 1000
-  '[tft:line]' 170 170 230 230 (colorSwatch 0 255 0 255)
+  '[tft:line]' 50 150 300 170 (colorSwatch 0 255 0 255)
   waitMillis 1000
 }
 }
 
-script 60 425 ('[tft:getWidth]')
+script 64 422 ('[tft:getWidth]')
 
-script 60 463 ('[tft:getHeight]')
+script 64 460 ('[tft:getHeight]')
 
 
 module TFT Output
@@ -115,3 +125,14 @@ to tft_drawVector x y angle length color {
   '[tft:line]' x y endX endY color
 }
 
+
+module 'Touch Screen' Input
+author MicroBlocks
+version 1 0 
+tags qvga touch tft 
+description 'Mouse pointer support for Boardie and the Linux VM, plus support for QVGA touch screen display on the (discontinued) IoT-Bus Io system.'
+
+  spec 'r' '[tft:tftTouched]' 'TFT touched'
+  spec 'r' '[tft:tftTouchX]' 'TFT touch X position'
+  spec 'r' '[tft:tftTouchY]' 'TFT touch Y position'
+  spec 'r' '[tft:tftTouchPressure]' 'TFT touch pressure'
