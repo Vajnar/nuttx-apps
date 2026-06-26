@@ -143,18 +143,33 @@ static OBJ primLine(int argCount, OBJ *args) {
 	double dx = x1 - x0;
 	double dy = y1 - y0;
 	double m = dy/dx;
-	int x0_s = x0;
-	int x1_s = x1;
-	if (x1_s < x0_s)
-	{
-		int tmp = x0_s;
-		x0_s = x1_s;
-		x1_s = tmp;
-	}
-	for (int x = x0_s; x <= x1_s; x++)
-	{
-		int y = (int)(m * ((double)x - (double)x0)) + y0;
-		dst[y * vinfo.xres + x] = color;
+	if (x0 != x1) {
+		int x0_s = x0;
+		int x1_s = x1;
+		if (x1_s < x0_s)
+		{
+			int tmp = x0_s;
+			x0_s = x1_s;
+			x1_s = tmp;
+		}
+		for (int x = x0_s; x <= x1_s; x++)
+		{
+			int y = (int)(m * ((double)x - (double)x0)) + y0;
+			dst[y * vinfo.xres + x] = color;
+		}
+	} else {
+		int y0_s = y0;
+		int y1_s = y1;
+		if (y1_s < y0_s)
+		{
+			int tmp = y0_s;
+			y0_s = y1_s;
+			y1_s = tmp;
+		}
+		for (int y = y0_s; y <= y1_s; y++)
+		{
+			dst[y * vinfo.xres + x0] = color;
+		}
 	}
 #ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
