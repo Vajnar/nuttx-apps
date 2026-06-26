@@ -32,8 +32,8 @@ static int tftEnabled = false;
 // Helper Functions
 
 #define COLOR_888_TO_565(color) (((((color) >> 19) & 0x1f) << 11) \
-                                |((((color) >> 10) & 0x3f)) \
-                                |(((color) >> 3) & 0x1f) << 6)
+                                |((((color) >> 10) & 0x3f) << 5)  \
+                                |(((color) >> 3) & 0x1f))
 
 void setRenderColor(uint32_t colorA) {
 	color = COLOR_888_TO_565(colorA);
@@ -47,13 +47,38 @@ void tftClear() {
 
 void tftInit() {
 	if (!tftEnabled) {
-		fb_fd = open("/dev/fb0", O_RDWR);
-		ioctl(fb_fd, FBIOGET_PLANEINFO, &pinfo);
-		ioctl(fb_fd, FBIOGET_VIDEOINFO, &vinfo);
+		int ret = open("/dev/fb0", O_RDWR);
+		if (ret < 0) {
+			perror("Cannot open /dev/fb0: ");
+			abort();
+		}
+		fb_fd = ret;
+		ret = ioctl(fb_fd, FBIOGET_PLANEINFO, &pinfo);
+		if (ret < 0) {
+			perror("Cannot get plane info: ");
+			close(fb_fd);
+			abort();
+		}
+		if (pinfo.bpp != 16) {
+			printf("Bits per pixel != 16\n");
+			close(fb_fd);
+			abort();
+		}
+		ret = ioctl(fb_fd, FBIOGET_VIDEOINFO, &vinfo);
+		if (ret < 0) {
+			perror("Cannot get video info: ");
+			close(fb_fd);
+			abort();
+		}
 		fb_mem = mmap(NULL,
 						pinfo.fblen,
 						PROT_READ | PROT_WRITE,
 						MAP_SHARED | MAP_FILE, fb_fd, 0);
+		if (fb_mem == MAP_FAILED) {
+			perror("Cannot map framebuffer: ");
+			close(fb_fd);
+			abort();
+		}
 		tftEnabled = true;
 	}
 }
@@ -93,6 +118,7 @@ static OBJ primSetPixel(int argCount, OBJ *args) {
 	uint16_t *dst = (uint16_t*) fb_mem;
 	dst[y * vinfo.xres + x] = color;
 
+#ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
 	area.x = x;
 	area.y = y;
@@ -100,6 +126,7 @@ static OBJ primSetPixel(int argCount, OBJ *args) {
 	area.h = 1;
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
+#endif
 	return falseObj;
 }
 
@@ -111,33 +138,33 @@ static OBJ primLine(int argCount, OBJ *args) {
 	int y1 = obj2int(args[3]);
 	setRenderColor(obj2int(args[4]));
 
-	if (x1 < x0)
-	{
-		int tmp = x0;
-		x0 = x1;
-		x1 = tmp;
-
-		tmp = y0;
-		y0 = y1;
-		y1 = tmp;
-	}
 	uint16_t *dst = (uint16_t *) fb_mem;
 
-	int dx = x1 - x0;
-	int dy = y1 - y0;
-	int m = dy/dx;
-	for (int x = x0; x <= x1; x++)
+	double dx = x1 - x0;
+	double dy = y1 - y0;
+	double m = dy/dx;
+	int x0_s = x0;
+	int x1_s = x1;
+	if (x1_s < x0_s)
 	{
-		int y = m * (x - x0) + y0;
+		int tmp = x0_s;
+		x0_s = x1_s;
+		x1_s = tmp;
+	}
+	for (int x = x0_s; x <= x1_s; x++)
+	{
+		int y = (int)(m * ((double)x - (double)x0)) + y0;
 		dst[y * vinfo.xres + x] = color;
 	}
+#ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
-	area.x = x0;
+	area.x = x0_s;
 	area.y = y1 > y0 ? y0 : y1;
-	area.w = x1 - x0;
+	area.w = x1_s - x0_s;
 	area.h = abs(y1 - y0);
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
+#endif
 	return falseObj;
 }
 
@@ -153,7 +180,7 @@ static OBJ primRect(int argCount, OBJ *args) {
 
 	for (int x = X; x < X + width; x++)
 	{
-		if ((x == X) || (x == X + width - 1))
+		if ((x == X) || (x == X + width - 1) || fill)
 		{
 			for (int y = Y; y < Y + height; y++)
 			{
@@ -162,12 +189,13 @@ static OBJ primRect(int argCount, OBJ *args) {
 		}
 		else
 		{
-		int y = Y;
-		dst[y * vinfo.xres + x] = color;
-		y = Y + height - 1;
-		dst[y * vinfo.xres + x] = color;
+			int y = Y;
+			dst[y * vinfo.xres + x] = color;
+			y = Y + height - 1;
+			dst[y * vinfo.xres + x] = color;
 		}
 	}
+#ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
 	area.x = X;
 	area.y = Y;
@@ -175,6 +203,7 @@ static OBJ primRect(int argCount, OBJ *args) {
 	area.h = height;
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
+#endif
 	return falseObj;
 }
 
@@ -203,6 +232,7 @@ static OBJ primCircle(int argCount, OBJ *args) {
 				}
 		}
 	}
+#ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
 	area.x = originX - radius;
 	area.y = originY - radius;
@@ -210,6 +240,7 @@ static OBJ primCircle(int argCount, OBJ *args) {
 	area.h = 2 * radius + 1;
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
+#endif
 	return falseObj;
 }
 
@@ -223,6 +254,7 @@ static OBJ primClear(int argCount, OBJ *args) {
 		}
 	}
 
+#ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
 	area.x = 0;
 	area.y = 0;
@@ -230,6 +262,7 @@ static OBJ primClear(int argCount, OBJ *args) {
 	area.h = vinfo.yres;
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
+#endif
 	return falseObj;
 }
 
