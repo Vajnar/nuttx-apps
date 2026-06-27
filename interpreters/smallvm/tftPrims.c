@@ -12,6 +12,7 @@
 #include <nuttx/config.h>
 #include <stdio.h>
 #include <nuttx/video/fb.h>
+#include <nuttx/input/touchscreen.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
@@ -25,9 +26,9 @@ static int fb_fd;
 static struct fb_planeinfo_s pinfo;
 static struct fb_videoinfo_s vinfo;
 static uint8_t *fb_mem;
-uint16_t color = 0;
+static uint16_t color = 0;
 
-static int tftEnabled = false;
+static bool tftEnabled = false;
 
 // Helper Functions
 
@@ -35,7 +36,7 @@ static int tftEnabled = false;
                                 |((((color) >> 10) & 0x3f) << 5)  \
                                 |(((color) >> 3) & 0x1f))
 
-void setRenderColor(uint32_t colorA) {
+static void setRenderColor(uint32_t colorA) {
 	color = COLOR_888_TO_565(colorA);
 }
 
@@ -281,6 +282,60 @@ static OBJ primClear(int argCount, OBJ *args) {
 	return falseObj;
 }
 
+static bool touchEnabled = false;
+static int touch_fd;
+static int touchX;
+static int touchY;
+static bool touchDown = false;
+
+static void initTouch(void) {
+	if (!touchEnabled) {
+		int ret = open("/dev/input0", O_RDONLY | O_NONBLOCK);
+		if (ret < 0) {
+			perror("Failed to open /dev/input0: ");
+			abort();
+		}
+		touch_fd = ret;
+		touchEnabled = true;
+	}
+}
+
+static void getTouchSample(void) {
+	struct touch_sample_s sample;
+
+	int ret = read(touch_fd, &sample, sizeof(struct touch_sample_s));
+	if (ret < 0 && errno != EWOULDBLOCK && errno != EAGAIN) {
+		perror("Failed to read() touch sample: ");
+		abort();
+	} else if (ret > 0) {
+		touchX = sample.point[0].x;
+		touchY = sample.point[0].y;
+		if ((sample.point[0].flags & TOUCH_DOWN) || (sample.point[0].flags & TOUCH_MOVE)) {
+			touchDown = true;
+		} else {
+			touchDown = false;
+		}
+	}
+}
+
+static OBJ primTftTouched(int argCount, OBJ *args) {
+	initTouch();
+	getTouchSample();
+	return touchDown ? trueObj : falseObj;
+}
+
+static OBJ primTftTouchX(int argCount, OBJ *args) {
+//	initTouch();
+//	getTouchSample();
+	return int2obj(touchDown ? touchX : -1);
+}
+
+static OBJ primTftTouchY(int argCount, OBJ *args) {
+//	initTouch();
+//	getTouchSample();
+	return int2obj(touchDown ? touchY : -1);}
+
+
 // Primitives
 
 static PrimEntry entries[] = {
@@ -292,6 +347,9 @@ static PrimEntry entries[] = {
 	{"rect", primRect},
 	{"circle", primCircle},
 	{"clear", primClear},
+	{"tftTouched", primTftTouched},
+	{"tftTouchX", primTftTouchX},
+	{"tftTouchY", primTftTouchY},
 };
 
 void addTFTPrims() {

@@ -3,7 +3,7 @@ author unknown
 version 1 0 
 description ''
 
-script 570 50 {
+script 570 54 {
 whenStarted
 forever {
   setUserLED true
@@ -13,23 +13,30 @@ forever {
 }
 }
 
-script 54 51 {
+script 54 55 {
 whenStarted
 forever {
   '[tft:clear]'
   waitMillis 1000
   '[tft:rect]' 100 10 100 100 (colorSwatch 0 0 255 255)
   waitMillis 1000
-  '[tft:circle]' 350 100 70 (colorSwatch 255 63 235 255)
+  '[tft:circle]' 350 100 70 (colorSwatch 255 63 235 255) true
   waitMillis 1000
   '[tft:line]' 50 150 300 170 (colorSwatch 0 255 0 255)
-  waitMillis 1000
+  waitMillis 5000
 }
 }
 
-script 64 422 ('[tft:getWidth]')
+script 649 270 {
+whenStarted
+forever {
+  if ('[tft:tftTouched]') {'[tft:rect]' ('[tft:tftTouchY]') ('[tft:tftTouchX]') 30 30 (colorSwatch 35 190 30 255)}
+}
+}
 
-script 64 460 ('[tft:getHeight]')
+script 64 426 ('[tft:getWidth]')
+
+script 64 464 ('[tft:getHeight]')
 
 
 module TFT Output
