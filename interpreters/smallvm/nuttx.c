@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <nuttx/config.h>
 #include <poll.h>
+#include <nuttx/leds/userled.h>
 
 #include "mem.h"
 #include "interp.h"
@@ -199,8 +200,31 @@ const char * boardType() {
 	return "NuttX";
 }
 
+static bool ledEnabled = false;
+static int led_fd;
+
 void primSetUserLED(OBJ *args) {
-	printf("Turning LED: %s\r\n", trueObj == args[0] ? "on" : "off");
+	int ret;
+	if (!ledEnabled) {
+		ret = open("/dev/led0", O_WRONLY);
+		if (ret < 0) {
+			perror("Failed to open /dev/led0: ");
+			abort();
+		}
+		led_fd = ret;
+		ledEnabled = true;
+	}
+	struct userled_s led;
+	led.ul_led = 0;
+	if (trueObj == args[0]) {
+		led.ul_on = true;
+	} else {
+		led.ul_on = false;
+	}
+	ret = ioctl(led_fd, ULEDIOC_SETLED, &led);
+	if (ret < 0) {
+		perror("Failed to set LED state: ");
+	}
 }
 
 // Stubs
