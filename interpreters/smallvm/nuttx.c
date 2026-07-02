@@ -266,11 +266,47 @@ void stopServos() {}
 
 // Persistence support
 
-int initCodeFile(uint8 *flash, int flashByteCount) { return 0; }
-void writeCodeFile(uint8 *code, int byteCount) { }
-void writeCodeFileWord(int word) { }
-void clearCodeFile(int ignore) { }
+char *codeFileName = "/w25/ublockscode";
+FILE *codeFile;
 
+int initCodeFile(uint8 *flash, int flashByteCount) {
+	codeFile = fopen(codeFileName, "ab+");
+	fseek(codeFile, 0 , SEEK_END);
+	long fileSize = ftell(codeFile);
+
+	// read code file into simulated Flash:
+	fseek(codeFile, 0L, SEEK_SET);
+	long bytesRead = fread((char*) flash, 1, flashByteCount, codeFile);
+	if (bytesRead != fileSize) {
+		outputString("initCodeFile did not read entire file");
+	}
+	return bytesRead;
+}
+
+void writeCodeFile(uint8 *code, int byteCount) {
+	fwrite(code, 1, byteCount, codeFile);
+	fflush(codeFile);
+	sync();
+	printf("Written %d bytes to persistent storage.\n", byteCount);
+}
+
+void writeCodeFileWord(int word) {
+	fwrite(&word, 1, 4, codeFile);
+	fflush(codeFile);
+	sync();
+	printf("Written %d bytes to persistent storage.\n", 4);
+}
+
+void clearCodeFile(int ignore) {
+	fclose(codeFile);
+	remove(codeFileName);
+	codeFile = fopen(codeFileName, "ab+");
+	uint32 cycleCount = ('S' << 24) | 1; // Header record, version 1
+	fwrite((uint8 *) &cycleCount, 1, 4, codeFile);
+	fflush(codeFile);
+	sync();
+	printf("Written %d bytes to persistent storage.\n", 4);
+}
 // Debug
 
 static void exitGracefully() {
