@@ -32,6 +32,8 @@
 #include <nuttx/config.h>
 #include <poll.h>
 #include <nuttx/leds/userled.h>
+#include <nuttx/input/buttons.h>
+
 
 #include "mem.h"
 #include "interp.h"
@@ -227,14 +229,51 @@ void primSetUserLED(OBJ *args) {
 	}
 }
 
+static bool buttonEnable = false;
+static int button_fd;
+
+OBJ primButtonA(OBJ *args) {
+	if (!buttonEnable) {
+		int ret = open("/dev/buttons", O_RDONLY | O_NONBLOCK);
+		if (ret < 0) {
+			perror("ERROR: Failed to open /dev/buttons: ");
+			abort();
+		}
+		button_fd = ret;
+		buttonEnable = true;
+	}
+	btn_buttonset_t sample;
+	int nbytes = read(button_fd, (void *)&sample, sizeof(btn_buttonset_t));
+	if (nbytes > 0) {
+		return (sample & 1) ? trueObj : falseObj;
+	}
+	return falseObj;
+}
+
+OBJ primButtonB(OBJ *args) {
+	if (!buttonEnable) {
+		int ret = open("/dev/buttons", O_RDONLY | O_NONBLOCK);
+		if (ret < 0) {
+			perror("ERROR: Failed to open /dev/buttons: ");
+			abort();
+		}
+		button_fd = ret;
+		buttonEnable = true;
+	}
+	btn_buttonset_t sample;
+	int nbytes = read(button_fd, (void *)&sample, sizeof(btn_buttonset_t));
+	if (nbytes > 0) {
+		return (sample & 2) ? trueObj : falseObj;
+	}
+	return falseObj;
+}
+
 // Stubs
 
 int useTFT = 0;
 
 void turnOffInternalNeoPixels() { }
 OBJ primMBDisplayOff(int argCount, OBJ *args) { return falseObj; }
-OBJ primButtonA(OBJ *args) { return falseObj; }
-OBJ primButtonB(OBJ *args) { return falseObj; }
 void stopTone() { }
 OBJ primI2cGet(OBJ *args) { return int2obj(0); }
 OBJ primI2cSet(OBJ *args) { return int2obj(0); }
