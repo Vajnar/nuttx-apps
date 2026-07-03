@@ -102,6 +102,7 @@ static void print_hex_dump(const unsigned char *buffer, size_t length) {
 }
 #endif
 
+static int listen_fd = -1;
 static int fd = -1; // pseudo terminal used for communication with the IDE
 
 int serialConnected() {
@@ -110,12 +111,15 @@ int serialConnected() {
 
 int waitUSecsOrEvent(int usecs) {
 	int ret;
-	int nfds = 1;
-	struct pollfd fds[1];
+	int nfds = 2;
+	struct pollfd fds[2];
 	struct timespec timeout = { .tv_sec = usecs / 1000000, .tv_nsec = (usecs % 1000000) * 1000};
 
+	memset(&fds, 0, sizeof(fds));
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
+	fds[1].fd = listen_fd;
+	fds[1].events = POLLIN;
 	if (bytesToOutput()) { fds[0].events |= POLLOUT; }
 	printf("Timeout = %lld.%09ld\n", timeout.tv_sec, timeout.tv_nsec);
 	ret = ppoll(fds, nfds, &timeout, NULL);
@@ -131,7 +135,17 @@ int recvBytes(uint8 *buf, int count) {
 	struct pollfd fds[1];
 	struct timespec timeout = {0,0};
 
-	if (fd < 0) return 0;
+	if (fd < 0) {
+		int ret = accept(listen_fd, NULL, NULL);
+		if (ret < 0) {
+			if (errno != EAGAIN && errno != EWOULDBLOCK) {
+				perror("Error on accept(), will retry: ");
+				return 0;
+			}
+		} else if (ret > 0) {
+			fd = ret;
+		}
+	}
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
 	int ret = ppoll(fds, nfds, &timeout, NULL);
@@ -145,6 +159,7 @@ int recvBytes(uint8 *buf, int count) {
 		}
 #ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
 		else if (readCount == 0) {
+			close(fd);
 			fd = -1;
 		}
 #endif
@@ -165,7 +180,17 @@ int sendBytes(uint8 *buf, int start, int end) {
 	struct pollfd fds[1];
 	struct timespec timeout = {0,0};
 
-	if (fd < 0) return 0;
+	if (fd < 0) {
+		int ret = accept(listen_fd, NULL, NULL);
+		if (ret < 0) {
+			if (errno != EAGAIN && errno != EWOULDBLOCK) {
+				perror("Error on accept(), will retry: ");
+				return 0;
+			}
+		} else if (ret > 0) {
+			fd = ret;
+		}
+	}
 	fds[0].fd = fd;
 	fds[0].events = POLLOUT;
 	int ret = ppoll(fds, nfds, &timeout, NULL);
@@ -179,6 +204,7 @@ int sendBytes(uint8 *buf, int start, int end) {
 		}
 #ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
 		else if (writtenBytes == 0) {
+			close(fd);
 			fd = -1;
 		}
 #endif
@@ -382,9 +408,9 @@ void setupConnection(void) {
 
 #ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
 void setupConnection(void) {
-	const int tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
+	listen_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	const int bool_true = 1;
-	setsockopt(tcp_socket, SOL_SOCKET, SO_REUSEADDR, &bool_true, sizeof(bool_true));
+	setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &bool_true, sizeof(bool_true));
 
 	struct sockaddr_in saddr;
 	memset(&saddr, 0, sizeof(struct sockaddr_in));
@@ -392,9 +418,16 @@ void setupConnection(void) {
 	saddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	saddr.sin_port = htons(CONFIG_INTERPRETERS_SMALLVM_TCP_PORT);
 
-	bind(tcp_socket, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
-	listen(tcp_socket, 1);
-	fd = accept(tcp_socket, NULL, NULL);
+	bind(listen_fd, (struct sockaddr *)&saddr, sizeof(struct sockaddr_in));
+	listen(listen_fd, 1);
+	int ret = accept(listen_fd, NULL, NULL);
+	if (ret < 0) {
+		if (errno != EAGAIN && errno != EWOULDBLOCK) {
+			perror("Error on accept(), will retry: ");
+		}
+	} else if (ret > 0) {
+		fd = ret;
+	}
 //	setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &bool_true, sizeof(bool_true));
 //	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &bool_true, sizeof(bool_true));
 //	int flags = fcntl(fd, F_GETFL, 0);
