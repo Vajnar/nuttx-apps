@@ -3,8 +3,8 @@ author unknown
 version 1 0 
 description ''
 
-script 570 54 {
-whenStarted
+script 609 50 {
+whenButtonPressed 'A'
 forever {
   setUserLED true
   waitMillis 500
@@ -13,7 +13,7 @@ forever {
 }
 }
 
-script 54 55 {
+script 54 82 {
 whenStarted
 forever {
   '[tft:clear]'
@@ -23,20 +23,17 @@ forever {
   '[tft:circle]' 350 100 70 (colorSwatch 255 63 235 255) true
   waitMillis 1000
   '[tft:line]' 50 150 300 170 (colorSwatch 0 255 0 255)
-  waitMillis 5000
+  waitMillis 20000
 }
 }
 
-script 649 270 {
+script 651 262 {
 whenStarted
 forever {
-  if ('[tft:tftTouched]') {'[tft:rect]' ('[tft:tftTouchY]') ('[tft:tftTouchX]') 30 30 (colorSwatch 35 190 30 255)}
+  if ('[tft:tftTouched]') {'[tft:rect]' ('[tft:tftTouchX]') ('[tft:tftTouchY]') 30 30 (colorSwatch 35 190 30 255)}
+  waitMillis 500
 }
 }
-
-script 64 426 ('[tft:getWidth]')
-
-script 64 464 ('[tft:getHeight]')
 
 
 module TFT Output
