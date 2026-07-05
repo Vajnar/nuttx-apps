@@ -152,23 +152,32 @@ int recvBytes(uint8 *buf, int count) {
 	if (ret == -1) {
 		perror("ppoll()");
 	} else if (ret) {
-		readCount = read(fd, buf, count);
-		if (readCount < 0) {
-			readCount = 0;
-			perror("Error recvBytes: ");
-		}
-#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
-		else if (readCount == 0) {
+		if ((fds[0].revents & POLLHUP) || (fds[0].revents & POLLERR)) {
 			close(fd);
 			fd = -1;
-		}
+		} else if (fds[0].revents & POLLIN) {
+			readCount = read(fd, buf, count);
+			if (readCount < 0) {
+				if (errno == EPIPE) {
+					close(fd);
+					fd = -1;
+				}
+				readCount = 0;
+				perror("Error recvBytes: ");
+			}
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
+			else if (readCount == 0) {
+				close(fd);
+				fd = -1;
+			}
 #endif
 #ifdef DEBUG
-		else if (readCount > 0) {
-			printf("recvBytes: buf = %p, readCount = %d, count = %d\n", buf, readCount, count);
-			print_hex_dump(buf, readCount);
-		}
+			else if (readCount > 0) {
+				printf("recvBytes: buf = %p, readCount = %d, count = %d\n", buf, readCount, count);
+				print_hex_dump(buf, readCount);
+			}
 #endif
+		}
 	}
 	return readCount;
 }
@@ -197,23 +206,32 @@ int sendBytes(uint8 *buf, int start, int end) {
 	if (ret == -1) {
 		perror("ppoll()");
 	} else if (ret) {
-		writtenBytes = write(fd, &buf[start], end - start);
-		if (writtenBytes < 0) {
-			writtenBytes = 0;
-			perror("Error sendBytes no: ");
-		}
-#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
-		else if (writtenBytes == 0) {
+		if ((fds[0].revents & POLLHUP) || (fds[0].revents & POLLERR)) {
 			close(fd);
 			fd = -1;
+		} else if (fds[0].revents & POLLOUT) {
+			writtenBytes = write(fd, &buf[start], end - start);
+			if (writtenBytes < 0) {
+				if (errno == EPIPE) {
+					close(fd);
+					fd = -1;
+				}
+				writtenBytes = 0;
+				perror("Error sendBytes no: ");
+			}
+	#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
+			else if (writtenBytes == 0) {
+				close(fd);
+				fd = -1;
+			}
+	#endif
+	#ifdef DEBUG
+			else if (writtenBytes > 0) {
+				printf("sendBytes: &buf[start] = %p, start = %d, end = %d, writtenBytes = %d, to write() = %d\n", &buf[start], start, end, writtenBytes, end - start);
+				print_hex_dump(&buf[start], writtenBytes);
+			}
+	#endif
 		}
-#endif
-#ifdef DEBUG
-		else if (writtenBytes > 0) {
-			printf("sendBytes: &buf[start] = %p, start = %d, end = %d, writtenBytes = %d, to write() = %d\n", &buf[start], start, end, writtenBytes, end - start);
-			print_hex_dump(&buf[start], writtenBytes);
-		}
-#endif
 	}
 	return writtenBytes;
 }
@@ -440,6 +458,7 @@ void setupConnection(void) {
 int main(int argc, char *argv[]) {
 	signal(SIGSEGV, segfault);
 	signal(SIGINT, exit);
+	signal(SIGPIPE, SIG_IGN);
 	atexit(exitGracefully);
 	setupConnection();
 	printf("Starting NuttX MicroBlocks...\n");
