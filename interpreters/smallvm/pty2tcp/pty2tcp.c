@@ -28,6 +28,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <poll.h>
+#include <errno.h>
 
 static int pty;
 static int tcp_socket;
@@ -43,6 +44,7 @@ static void makePtyFile() {
 static void exitGracefully() {
 	remove("/tmp/ublocksptyname");
 	close(tcp_socket);
+	close(pty);
 	exit(0);
 }
 
@@ -86,17 +88,23 @@ void transferData() {
 			if (fds[i].revents & POLLIN) {
 				int readd = read(fds[i].fd, buf[i], sizeof(buf[0]));
 				if (readd < 0) {
+					if (errno == EPIPE) {
+						exit(EXIT_FAILURE);
+					}
 					perror("read()");
 				} else if (readd) {
 					recv[i] = readd;
 					printf("%d = read(%d, %p, %ld)\n", readd, fds[i].fd, buf[i], sizeof(buf[0]));
 				}
+			} else if ((fds[i].revents & POLLHUP) || (fds[i].revents & POLLERR)) {
+				printf("Terminating connection\n");
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
 
 	while (recv[0] > 0 || recv[1] > 0) {
-		timeout.tv_sec = 0;
+		timeout.tv_sec = 30;
 		timeout.tv_nsec = 0;
 		memset(fds, 0, sizeof(fds));
 		for (int i = 0; i < 2; i++) {
@@ -115,11 +123,17 @@ void transferData() {
 					int written = write(fds[i].fd, &buf[i][sent[i]], recv[i]);
 					printf("%d = write(%d, %p, %d)\n\n", written, fds[i].fd, &buf[i][sent[i]], recv[i]);
 					if (written < 0) {
+						if (errno == EPIPE) {
+							exit(EXIT_FAILURE);
+						}
 						written = 0;
 						perror("written(): ");
 					}
 					sent[i] += written;
 					recv[i] -= written;
+				} else if ((fds[i].revents & POLLHUP) || (fds[i].revents & POLLERR)) {
+					printf("Terminating connection\n");
+					exit(EXIT_FAILURE);
 				}
 			}
 		}
@@ -156,6 +170,7 @@ void setupTcpConnection(void) {
 
 int main(void) {
 	signal(SIGINT, exit);
+	signal(SIGPIPE, SIG_IGN);
 	atexit(exitGracefully);
 	setupTcpConnection();
 	openPseudoTerminal();
