@@ -105,14 +105,17 @@ static void print_hex_dump(const unsigned char *buffer, size_t length) {
 static int listen_fd = -1;
 static int fd = -1; // pseudo terminal used for communication with the IDE
 
+static bool buttonEnable = false;
+static int button_fd = -1;
+
 int serialConnected() {
 	return fd > -1;
 }
 
 int waitUSecsOrEvent(int usecs) {
 	int ret;
-	int nfds = 2;
-	struct pollfd fds[2];
+	int nfds = 3;
+	struct pollfd fds[3];
 	struct timespec timeout = { .tv_sec = usecs / 1000000, .tv_nsec = (usecs % 1000000) * 1000};
 
 	memset(&fds, 0, sizeof(fds));
@@ -120,6 +123,8 @@ int waitUSecsOrEvent(int usecs) {
 	fds[0].events = POLLIN;
 	fds[1].fd = listen_fd;
 	fds[1].events = POLLIN;
+	fds[2].fd = button_fd;
+	fds[2].events = POLLIN;
 	if (bytesToOutput()) { fds[0].events |= POLLOUT; }
 	printf("Timeout = %lld.%09ld\n", timeout.tv_sec, timeout.tv_nsec);
 	ret = ppoll(fds, nfds, &timeout, NULL);
@@ -272,9 +277,6 @@ void primSetUserLED(OBJ *args) {
 		perror("Failed to set LED state: ");
 	}
 }
-
-static bool buttonEnable = false;
-static int button_fd;
 
 OBJ primButtonA(OBJ *args) {
 	if (!buttonEnable) {

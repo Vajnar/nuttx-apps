@@ -3,7 +3,7 @@ author unknown
 version 1 0 
 description ''
 
-script 609 50 {
+script 637 53 {
 whenButtonPressed 'A'
 forever {
   setUserLED true
@@ -13,24 +13,24 @@ forever {
 }
 }
 
-script 54 82 {
+script 54 54 {
 whenStarted
 forever {
   '[tft:clear]'
   waitMillis 1000
-  '[tft:rect]' 100 10 100 100 (colorSwatch 0 0 255 255)
+  '[tft:rect]' ((('[tft:getWidth]') / 2) + (('[tft:getWidth]') / 4)) (('[tft:getHeight]') / 10) (('[tft:getWidth]') / 5) (('[tft:getHeight]') / 5) (colorSwatch 0 0 255 255) true
   waitMillis 1000
-  '[tft:circle]' 350 100 70 (colorSwatch 255 63 235 255) true
+  '[tft:circle]' (('[tft:getWidth]') / 2) (('[tft:getHeight]') / 2) ((minimum ('[tft:getWidth]') ('[tft:getHeight]')) / 3) (colorSwatch 255 63 235 255) true
   waitMillis 1000
-  '[tft:line]' 50 150 300 170 (colorSwatch 0 255 0 255)
+  '[tft:line]' (('[tft:getWidth]') / 2) (('[tft:getHeight]') / 2) (('[tft:getWidth]') / 3) (('[tft:getHeight]') / 3) (colorSwatch 0 255 0 255)
   waitMillis 20000
 }
 }
 
-script 651 262 {
+script 673 297 {
 whenStarted
 forever {
-  if ('[tft:tftTouched]') {'[tft:rect]' ('[tft:tftTouchX]') ('[tft:tftTouchY]') 30 30 (colorSwatch 35 190 30 255)}
+  if ('[tft:tftTouched]') {'[tft:rect]' ('[tft:tftTouchX]') ('[tft:tftTouchY]') (('[tft:getWidth]') / 10) (('[tft:getHeight]') / 10) (colorSwatch 35 190 30 255) true}
   waitMillis 500
 }
 }
