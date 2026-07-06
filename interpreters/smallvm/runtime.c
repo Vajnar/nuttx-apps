@@ -398,6 +398,7 @@ void startReceiversOfBroadcast(char *msg, int byteCount) {
 
 // Button Hat Support
 
+#ifndef NUTTX
 #define BUTTON_CHECK_INTERVAL 10000 // microseconds
 #define BUTTON_CLICK_TIME 50 // milliseconds
 
@@ -406,6 +407,7 @@ static uint32 buttonADownTime = 0;
 static uint32 buttonBDownTime = 0;
 static char buttonAHandled = false;
 static char buttonBHandled = false;
+#endif
 
 static void startButtonHats(int hatType) {
 	for (int i = 0; i < MAX_CHUNKS; i++) {
@@ -433,6 +435,20 @@ static int mustPollButtons() {
 }
 
 void checkButtons() {
+#ifdef NUTTX
+	if (!mustPollButtons()) return; // no need to poll buttons (allows button pins to be used for output)
+
+	int buttonAIsDown = (int) primButtonA(NULL);
+	int buttonBIsDown = (int) primButtonB(NULL);
+
+	if (buttonAIsDown && buttonBIsDown) {
+		startButtonHats(buttonsAandBHat);
+	} else if (buttonAIsDown) {
+		startButtonHats(buttonAHat);
+	} else if (buttonBIsDown) {
+		startButtonHats(buttonBHat);
+	}
+#else
 	// If button A, button B, or both are pressed, start tasks for all of the relevant
 	// hat blocks (if they are not already running). This check is done at most once
 	// every BUTTON_CHECK_INTERVAL microseconds.
@@ -502,6 +518,7 @@ void checkButtons() {
 		buttonBDownTime = 0;
 		buttonBHandled = false;
 	}
+#endif
 }
 
 // Store Ops
