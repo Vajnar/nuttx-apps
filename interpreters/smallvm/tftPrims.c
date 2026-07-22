@@ -22,6 +22,8 @@
 #include "mem.h"
 #include "interp.h"
 
+#ifdef CONFIG_INTERPRETERS_SMALLVM_FB
+
 static int fb_fd;
 static struct fb_planeinfo_s pinfo;
 static struct fb_videoinfo_s vinfo;
@@ -48,9 +50,9 @@ void tftClear() {
 
 void tftInit() {
 	if (!tftEnabled) {
-		int ret = open("/dev/fb0", O_RDWR);
+		int ret = open(CONFIG_INTERPRETERS_SMALLVM_FB_PATH, O_RDWR);
 		if (ret < 0) {
-			perror("Cannot open /dev/fb0: ");
+			perror("Cannot open Framebuffer device: ");
 			abort();
 		}
 		fb_fd = ret;
@@ -147,28 +149,24 @@ static OBJ primLine(int argCount, OBJ *args) {
 	if (x0 != x1) {
 		int x0_s = x0;
 		int x1_s = x1;
-		if (x1_s < x0_s)
-		{
+		if (x1_s < x0_s) {
 			int tmp = x0_s;
 			x0_s = x1_s;
 			x1_s = tmp;
 		}
-		for (int x = x0_s; x <= x1_s; x++)
-		{
+		for (int x = x0_s; x <= x1_s; x++) {
 			int y = (int)(m * ((double)x - (double)x0)) + y0;
 			dst[y * vinfo.xres + x] = color;
 		}
 	} else {
 		int y0_s = y0;
 		int y1_s = y1;
-		if (y1_s < y0_s)
-		{
+		if (y1_s < y0_s) {
 			int tmp = y0_s;
 			y0_s = y1_s;
 			y1_s = tmp;
 		}
-		for (int y = y0_s; y <= y1_s; y++)
-		{
+		for (int y = y0_s; y <= y1_s; y++) {
 			dst[y * vinfo.xres + x0] = color;
 		}
 	}
@@ -194,17 +192,13 @@ static OBJ primRect(int argCount, OBJ *args) {
 	setRenderColor(obj2int(args[4]));
 	uint16_t *dst = (uint16_t *) fb_mem;
 
-	for (int x = X; x < X + width; x++)
-	{
-		if ((x == X) || (x == X + width - 1) || fill)
-		{
-			for (int y = Y; y < Y + height; y++)
-			{
+	for (int x = X; x < X + width; x++) {
+		if ((x == X) || (x == X + width - 1) || fill) {
+			for (int y = Y; y < Y + height; y++) {
 				dst[y * vinfo.xres + x] = color;
 			}
 		}
-		else
-		{
+		else {
 			int y = Y;
 			dst[y * vinfo.xres + x] = color;
 			y = Y + height - 1;
@@ -232,18 +226,15 @@ static OBJ primCircle(int argCount, OBJ *args) {
 	int fill = (argCount > 4) ? (trueObj == args[4]) : true;
 	uint16_t *dst = (uint16_t *) fb_mem;
 
-	for (int x = originX - radius; x <= originX + radius; x++)
-	{
+	for (int x = originX - radius; x <= originX + radius; x++) {
 		int y = originY + sqrt(radius * radius - (x - originX) * (x - originX));
 		dst[y * vinfo.xres + x] = color;
 		y = originY - sqrt(radius * radius - (x - originX) * (x - originX));
 		dst[y * vinfo.xres + x] = color;
-		if (fill)
-		{
+		if (fill) {
 			for (int y_tmp = originY - sqrt(radius * radius - (x - originX) * (x - originX)); \
 				y_tmp < originY + sqrt(radius * radius - (x - originX) * (x - originX)); \
-				y_tmp++)
-				{
+				y_tmp++) {
 					dst[y_tmp * vinfo.xres + x] = color;
 				}
 		}
@@ -281,7 +272,9 @@ static OBJ primClear(int argCount, OBJ *args) {
 #endif
 	return falseObj;
 }
+#endif
 
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TOUCH
 static bool touchEnabled = false;
 static int touch_fd;
 static int touchX;
@@ -290,9 +283,9 @@ static bool touchDown = false;
 
 static void initTouch(void) {
 	if (!touchEnabled) {
-		int ret = open("/dev/input0", O_RDONLY | O_NONBLOCK);
+		int ret = open(CONFIG_INTERPRETERS_SMALLVM_TOUCH_PATH, O_RDONLY | O_NONBLOCK);
 		if (ret < 0) {
-			perror("Failed to open /dev/input0: ");
+			perror("Failed to open input device: ");
 			abort();
 		}
 		touch_fd = ret;
@@ -325,20 +318,17 @@ static OBJ primTftTouched(int argCount, OBJ *args) {
 }
 
 static OBJ primTftTouchX(int argCount, OBJ *args) {
-//	initTouch();
-//	getTouchSample();
 	return int2obj(touchDown ? touchX : -1);
 }
 
 static OBJ primTftTouchY(int argCount, OBJ *args) {
-//	initTouch();
-//	getTouchSample();
-	return int2obj(touchDown ? touchY : -1);}
-
-
+	return int2obj(touchDown ? touchY : -1);
+}
+#endif
 // Primitives
 
 static PrimEntry entries[] = {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_FB
 	{"enableDisplay", primEnableDisplay},
 	{"getWidth", primGetWidth},
 	{"getHeight", primGetHeight},
@@ -347,11 +337,16 @@ static PrimEntry entries[] = {
 	{"rect", primRect},
 	{"circle", primCircle},
 	{"clear", primClear},
+#endif
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TOUCH
 	{"tftTouched", primTftTouched},
 	{"tftTouchX", primTftTouchX},
 	{"tftTouchY", primTftTouchY},
+#endif
 };
 
 void addTFTPrims() {
+#if defined(CONFIG_INTERPRETERS_SMALLVM_FB) || defined(CONFIG_INTERPRETERS_SMALLVM_TOUCH)
 	addPrimitiveSet(TFTPrims, "tft", sizeof(entries) / sizeof(PrimEntry), entries);
+#endif
 }

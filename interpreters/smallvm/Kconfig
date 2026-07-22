@@ -39,4 +39,60 @@ config INTERPRETERS_SMALLVM_TCP_PORT
 	default 9876
 endif
 
+config INTERPRETERS_SMALLVM_LED
+	bool "Use USERLED driver to interface with onboard LED(s)"
+	default n
+
+if INTERPRETERS_SMALLVM_LED
+
+config INTERPRETERS_SMALLVM_LED_PATH
+	string "Set USERLED device path"
+	default "/dev/led0"
+endif
+
+config INTERPRETERS_SMALLVM_BUTTONS
+	bool "Use BUTTONS driver to interface with onboard button(s)"
+	default n
+
+if INTERPRETERS_SMALLVM_BUTTONS
+
+config INTERPRETERS_SMALLVM_BUTTONS_PATH
+	string "Set BUTTONS device path"
+	default "/dev/buttons"
+
+endif
+
+config INTERPRETERS_SMALLVM_FB
+	bool "Use framebuffer device to interface with LCD TFT"
+	default n
+
+if INTERPRETERS_SMALLVM_FB
+
+config INTERPRETERS_SMALLVM_FB_PATH
+	string "Set Framebuffer device path"
+	default "/dev/fb0"
+endif
+
+config INTERPRETERS_SMALLVM_TOUCH
+	bool "Use touch interface"
+	default n
+
+if INTERPRETERS_SMALLVM_TOUCH
+
+config INTERPRETERS_SMALLVM_TOUCH_PATH
+	string "Set touch device path"
+	default "/dev/input0"
+endif
+
+config INTERPRETERS_SMALLVM_PERSISTENCE
+	bool "Enable persistence support"
+	default n
+
+if INTERPRETERS_SMALLVM_PERSISTENCE
+
+config INTERPRETERS_SMALLVM_PERSISTENCE_PATH
+	string "Set path to persistent storage file"
+	default "/w25/ublockscode"
+endif
+
 endif
