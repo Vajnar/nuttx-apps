@@ -105,8 +105,10 @@ static void print_hex_dump(const unsigned char *buffer, size_t length) {
 static int listen_fd = -1;
 static int fd = -1; // pseudo terminal used for communication with the IDE
 
+#ifdef CONFIG_INTERPRETERS_SMALLVM_BUTTONS
 static bool buttonEnable = false;
 static int button_fd = -1;
+#endif
 
 int serialConnected() {
 	return fd > -1;
@@ -114,8 +116,13 @@ int serialConnected() {
 
 int waitUSecsOrEvent(int usecs) {
 	int ret;
+#ifdef CONFIG_INTERPRETERS_SMALLVM_BUTTONS
 	int nfds = 3;
 	struct pollfd fds[3];
+#else
+	int nfds = 2;
+	struct pollfd fds[2];
+#endif
 	struct timespec timeout = { .tv_sec = usecs / 1000000, .tv_nsec = (usecs % 1000000) * 1000};
 
 	memset(&fds, 0, sizeof(fds));
@@ -123,12 +130,14 @@ int waitUSecsOrEvent(int usecs) {
 	fds[0].events = POLLIN;
 	fds[1].fd = listen_fd;
 	fds[1].events = POLLIN;
+#ifdef CONFIG_INTERPRETERS_SMALLVM_BUTTONS
 	fds[2].fd = button_fd;
 	fds[2].events = POLLIN;
+#endif
 	if (bytesToOutput()) { fds[0].events |= POLLOUT; }
-	printf("Timeout = %lld.%09ld\n", timeout.tv_sec, timeout.tv_nsec);
+//	printf("Timeout = %lld.%09ld\n", timeout.tv_sec, timeout.tv_nsec);
 	ret = ppoll(fds, nfds, &timeout, NULL);
-	printf("ppoll() = %d\n", ret);
+//	printf("ppoll() = %d\n", ret);
 
 	return ret;
 }
@@ -251,15 +260,18 @@ const char * boardType() {
 	return "NuttX";
 }
 
+#ifdef CONFIG_INTERPRETERS_SMALLVM_LED
 static bool ledEnabled = false;
 static int led_fd;
+#endif
 
 void primSetUserLED(OBJ *args) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_LED
 	int ret;
 	if (!ledEnabled) {
-		ret = open("/dev/led0", O_WRONLY);
+		ret = open(CONFIG_INTERPRETERS_SMALLVM_LED_PATH, O_WRONLY);
 		if (ret < 0) {
-			perror("Failed to open /dev/led0: ");
+			perror("Failed to open LED device: ");
 			abort();
 		}
 		led_fd = ret;
@@ -276,13 +288,17 @@ void primSetUserLED(OBJ *args) {
 	if (ret < 0) {
 		perror("Failed to set LED state: ");
 	}
+#else
+	printf("Set user LED: %s\n", trueObj == args[0] ? "on" : "off");
+#endif
 }
 
 OBJ primButtonA(OBJ *args) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_BUTTONS
 	if (!buttonEnable) {
-		int ret = open("/dev/buttons", O_RDONLY | O_NONBLOCK);
+		int ret = open(CONFIG_INTERPRETERS_SMALLVM_BUTTONS_PATH, O_RDONLY | O_NONBLOCK);
 		if (ret < 0) {
-			perror("ERROR: Failed to open /dev/buttons: ");
+			perror("ERROR: Failed to open buttons device: ");
 			abort();
 		}
 		button_fd = ret;
@@ -293,14 +309,16 @@ OBJ primButtonA(OBJ *args) {
 	if (nbytes > 0) {
 		return (sample & 1) ? trueObj : falseObj;
 	}
+#endif
 	return falseObj;
 }
 
 OBJ primButtonB(OBJ *args) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_BUTTONS
 	if (!buttonEnable) {
-		int ret = open("/dev/buttons", O_RDONLY | O_NONBLOCK);
+		int ret = open(CONFIG_INTERPRETERS_SMALLVM_BUTTONS_PATH, O_RDONLY | O_NONBLOCK);
 		if (ret < 0) {
-			perror("ERROR: Failed to open /dev/buttons: ");
+			perror("ERROR: Failed to open buttons device: ");
 			abort();
 		}
 		button_fd = ret;
@@ -311,6 +329,7 @@ OBJ primButtonB(OBJ *args) {
 	if (nbytes > 0) {
 		return (sample & 2) ? trueObj : falseObj;
 	}
+#endif
 	return falseObj;
 }
 
@@ -351,11 +370,18 @@ void stopServos() {}
 
 // Persistence support
 
-char *codeFileName = "/w25/ublockscode";
+#ifdef CONFIG_INTERPRETERS_SMALLVM_PERSISTENCE
+char *codeFileName = CONFIG_INTERPRETERS_SMALLVM_PERSISTENCE_PATH;
 FILE *codeFile;
+#endif
 
 int initCodeFile(uint8 *flash, int flashByteCount) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_PERSISTENCE
 	codeFile = fopen(codeFileName, "ab+");
+	if (codeFile == NULL) {
+		perror("Failed to open persistence file: ");
+		abort();
+	}
 	fseek(codeFile, 0 , SEEK_END);
 	long fileSize = ftell(codeFile);
 
@@ -366,23 +392,31 @@ int initCodeFile(uint8 *flash, int flashByteCount) {
 		outputString("initCodeFile did not read entire file");
 	}
 	return bytesRead;
+#else
+	return 0;
+#endif
 }
 
 void writeCodeFile(uint8 *code, int byteCount) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_PERSISTENCE
 	fwrite(code, 1, byteCount, codeFile);
 	fflush(codeFile);
 	sync();
-	printf("Written %d bytes to persistent storage.\n", byteCount);
+//	printf("Written %d bytes to persistent storage.\n", byteCount);
+#endif
 }
 
 void writeCodeFileWord(int word) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_PERSISTENCE
 	fwrite(&word, 1, 4, codeFile);
 	fflush(codeFile);
 	sync();
-	printf("Written %d bytes to persistent storage.\n", 4);
+//	printf("Written %d bytes to persistent storage.\n", 4);
+#endif
 }
 
 void clearCodeFile(int ignore) {
+#ifdef CONFIG_INTERPRETERS_SMALLVM_PERSISTENCE
 	fclose(codeFile);
 	remove(codeFileName);
 	codeFile = fopen(codeFileName, "ab+");
@@ -390,7 +424,8 @@ void clearCodeFile(int ignore) {
 	fwrite((uint8 *) &cycleCount, 1, 4, codeFile);
 	fflush(codeFile);
 	sync();
-	printf("Written %d bytes to persistent storage.\n", 4);
+//	printf("Written %d bytes to persistent storage.\n", 4);
+#endif
 }
 // Debug
 

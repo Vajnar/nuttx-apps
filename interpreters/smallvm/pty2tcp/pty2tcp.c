@@ -94,7 +94,7 @@ void transferData() {
 					perror("read()");
 				} else if (readd) {
 					recv[i] = readd;
-					printf("%d = read(%d, %p, %ld)\n", readd, fds[i].fd, buf[i], sizeof(buf[0]));
+//					printf("%d = read(%d, %p, %ld)\n", readd, fds[i].fd, buf[i], sizeof(buf[0]));
 				}
 			} else if ((fds[i].revents & POLLHUP) || (fds[i].revents & POLLERR)) {
 				printf("Terminating connection\n");
@@ -121,7 +121,7 @@ void transferData() {
 			for (int i = 0; i < 2; i++) {
 				if (fds[i].revents & POLLOUT) {
 					int written = write(fds[i].fd, &buf[i][sent[i]], recv[i]);
-					printf("%d = write(%d, %p, %d)\n\n", written, fds[i].fd, &buf[i][sent[i]], recv[i]);
+//					printf("%d = write(%d, %p, %d)\n\n", written, fds[i].fd, &buf[i][sent[i]], recv[i]);
 					if (written < 0) {
 						if (errno == EPIPE) {
 							exit(EXIT_FAILURE);
@@ -154,7 +154,7 @@ void setupTcpConnection(void) {
 	struct sockaddr_in saddr;
 	memset(&saddr, 0, sizeof(struct sockaddr_in));
 	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = inet_addr("10.0.0.1");
+	saddr.sin_addr.s_addr = inet_addr("192.168.1.222");
 	saddr.sin_port = htons(9876);
 
 	int ret = connect(tcp_socket, &saddr, sizeof(saddr));
