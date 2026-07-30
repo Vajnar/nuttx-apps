@@ -149,6 +149,7 @@ int recvBytes(uint8 *buf, int count) {
 	struct pollfd fds[1];
 	struct timespec timeout = {0,0};
 
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
 	if (fd < 0) {
 		int ret = accept(listen_fd, NULL, NULL);
 		if (ret < 0) {
@@ -160,6 +161,11 @@ int recvBytes(uint8 *buf, int count) {
 			fd = ret;
 		}
 	}
+#else
+	if (fd < 0) {
+		return 0;
+	}
+#endif
 	fds[0].fd = fd;
 	fds[0].events = POLLIN;
 	int ret = ppoll(fds, nfds, &timeout, NULL);
@@ -203,6 +209,7 @@ int sendBytes(uint8 *buf, int start, int end) {
 	struct pollfd fds[1];
 	struct timespec timeout = {0,0};
 
+#ifdef CONFIG_INTERPRETERS_SMALLVM_TCP
 	if (fd < 0) {
 		int ret = accept(listen_fd, NULL, NULL);
 		if (ret < 0) {
@@ -214,6 +221,11 @@ int sendBytes(uint8 *buf, int start, int end) {
 			fd = ret;
 		}
 	}
+#else
+	if (fd < 0) {
+		return 0;
+	}
+#endif
 	fds[0].fd = fd;
 	fds[0].events = POLLOUT;
 	int ret = ppoll(fds, nfds, &timeout, NULL);
