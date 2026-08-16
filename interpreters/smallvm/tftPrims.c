@@ -172,9 +172,9 @@ static OBJ primLine(int argCount, OBJ *args) {
 	}
 #ifdef CONFIG_FB_UPDATE
 	struct fb_area_s area;
-	area.x = x0_s;
+	area.x = x1 > x0 ? x0 : x1;
 	area.y = y1 > y0 ? y0 : y1;
-	area.w = x1_s - x0_s;
+	area.w = abs(x1 - x0);
 	area.h = abs(y1 - y0);
 
 	ioctl(fb_fd, FBIO_UPDATE, &area);
